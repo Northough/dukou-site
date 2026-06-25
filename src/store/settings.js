@@ -91,8 +91,8 @@ export const DEFAULT_PROMPT_SETTINGS = {
 
 export const DEFAULT_UI_SETTINGS = {
   theme: "light",
-  duName: "机",
-  userName: "我",
+  duName: "Nortia",
+  userName: "17",
   duAvatarImage: "",
   userAvatarImage: "",
   duAvatarOpacity: 1,
@@ -111,6 +111,10 @@ export const DEFAULT_UI_SETTINGS = {
   chatBubbleOpacity: 1,
   chatBubbleBlur: 0,
 };
+export const DEFAULT_TERMINAL_SETTINGS = {
+  wsUrl: "",
+  token: "",
+};
 
 export const DEFAULT_SETTINGS = {
   model: DEFAULT_MODEL_SETTINGS,
@@ -118,6 +122,7 @@ export const DEFAULT_SETTINGS = {
   ui: DEFAULT_UI_SETTINGS,
   transport: DEFAULT_TRANSPORT_SETTINGS,
   prompt: DEFAULT_PROMPT_SETTINGS,
+  terminal: DEFAULT_TERMINAL_SETTINGS,
 };
 
 function canUseLocalStorage() {

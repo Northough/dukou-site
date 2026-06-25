@@ -7,6 +7,7 @@ import {
   DEFAULT_MEMORY_SETTINGS,
   DEFAULT_MODEL_SETTINGS,
   DEFAULT_PROMPT_SETTINGS,
+  DEFAULT_TERMINAL_SETTINGS,
   DEFAULT_TRANSPORT_SETTINGS,
   DEFAULT_UI_SETTINGS,
   PROVIDER_PRESETS,
@@ -64,6 +65,12 @@ const statusLabels = {
   success: "成功",
   error: "失败",
 };
+
+const settingsEntries = [
+  { id: "model", title: "模型接入", sub: "Provider、Base URL、Model、API Key", keywords: "provider base url model api key 测试模型 连接 temperature max tokens 输出模式" },
+  { id: "terminal", title: "终端", sub: "云端命令行连接地址、访问令牌", keywords: "terminal 终端 命令行 ws websocket cloudflare tunnel token claude code" },
+
+];
 
 const LOCAL_EXPORT_TIME_KEY = "dukou:lastExportAt";
 const KEEPSAKE_DRAFTS_KEY = "dukou:conversationKeepsakes";
@@ -945,7 +952,40 @@ function ModelSettingsPage({ settings, modelStatus, onBack, onRequestLeave, onSa
     </>
   );
 }
+function TerminalSettingsPage({ settings, onBack, onRequestLeave, onSave }) {
+  const [draft, setDraft] = useState(settings.terminal || { wsUrl: "", token: "" });
+  const dirty = JSON.stringify(draft) !== JSON.stringify(settings.terminal);
 
+  const updateDraft = (patch) => {
+    setDraft((current) => ({ ...current, ...patch }));
+  };
+
+  return (
+    <>
+      <SubHeader title="终端" onBack={() => onRequestLeave(dirty, onBack)} actionLabel="保存" onAction={() => onSave(draft)} />
+      <div className="settings-scroll">
+        <Section title="连接">
+          <Row label="WebSocket 地址" sub="Cloudflare Tunnel 暴露的终端服务地址">
+            <input
+              className="settings-control"
+              value={draft.wsUrl}
+              onChange={(event) => updateDraft({ wsUrl: event.target.value })}
+              placeholder="wss://your-tunnel-domain/term"
+            />
+          </Row>
+          <Row label="访问令牌">
+            <input
+              className="settings-control"
+              type="password"
+              value={draft.token}
+              onChange={(event) => updateDraft({ token: event.target.value })}
+            />
+          </Row>
+        </Section>
+      </div>
+    </>
+  );
+}
 function PersonaPromptPage({ settings, onBack, onRequestLeave, onSave, showToast }) {
   const initialPrompt = settings.prompt.mode === "custom" ? settings.prompt.customSystemPrompt : DEFAULT_SYSTEM_PROMPT;
   const [promptText, setPromptText] = useState(initialPrompt);
@@ -2201,6 +2241,14 @@ export default function Settings() {
           }}
           onTest={runModelTest}
           showToast={showToast}
+        />
+      )}
+      {page === "terminal" && (
+        <TerminalSettingsPage
+          settings={settings}
+          onBack={() => setPage("home")}
+          onRequestLeave={requestLeaveConfirm}
+          onSave={(terminal) => persist({ ...settings, terminal })}
         />
       )}
       {page === "persona" && (

@@ -1,0 +1,172 @@
+/* src/styles/terminal.css */
+
+.terminal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: #0b0f14;
+  animation: terminal-slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes terminal-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-overlay {
+    animation: none;
+  }
+}
+
+.terminal-overlay__header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, #11161c, #0b0f14);
+}
+
+.terminal-overlay__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: #d7ddE6;
+}
+
+.terminal-overlay__prompt {
+  color: #7fd8a4;
+  font-weight: 600;
+}
+
+.terminal-overlay__close {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #c4cad3;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.terminal-overlay__close:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.terminal-view {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+
+.terminal-view__status {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #8a9099;
+  padding: 6px 16px;
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+
+.terminal-view__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #66707b;
+}
+
+.terminal-view__status[data-status="open"] .terminal-view__dot {
+  background: #7fd8a4;
+  box-shadow: 0 0 6px rgba(127, 216, 164, 0.6);
+}
+
+.terminal-view__status[data-status="connecting"] .terminal-view__dot {
+  background: #e3c878;
+  animation: terminal-pulse 1s ease-in-out infinite;
+}
+
+.terminal-view__status[data-status="closed"] .terminal-view__dot,
+.terminal-view__status[data-status="error"] .terminal-view__dot {
+  background: #e2766f;
+}
+
+@keyframes terminal-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.terminal-view__surface {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px 8px 12px;
+}
+
+/* xterm.js 内部容器需要明确高度才能正确 fit() */
+.terminal-view__surface .xterm,
+.terminal-view__surface .xterm-viewport {
+  height: 100%;
+}
+
+.terminal-key-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  background: #0e1318;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  scrollbar-width: none;
+}
+
+.terminal-key-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.terminal-key-toolbar__key {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #1a2129;
+  color: #cfd6de;
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  /* 移动端点击不要有蓝色高亮闪烁 */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.terminal-key-toolbar__key:active {
+  background: #232c36;
+  transform: scale(0.96);
+}
+
+.terminal-key-toolbar__key[data-variant="warn"] {
+  border-color: rgba(226, 118, 111, 0.4);
+  color: #f0a39e;
+}
+
+.terminal-key-toolbar__key[data-variant="warn"]:active {
+  background: rgba(226, 118, 111, 0.16);
+}

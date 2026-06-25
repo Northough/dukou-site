@@ -779,7 +779,7 @@ function RegenerateIcon() {
   );
 }
 
-export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenSettings, onOpenFunction }) {
+export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTerminal, onOpenSettings, onOpenFunction }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [activeQuote, setActiveQuote] = useState(null);
@@ -1823,6 +1823,14 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenSetti
           <button className="chat-icon-button" type="button" onClick={onOpenSettings} aria-label="设置">
             <SettingsIcon />
           </button>
+          <button
+          type="button"
+          className="chat-header__icon-btn"
+          onClick={onOpenTerminal}
+          aria-label="打开终端">
+          {/* 用你项目里现成的图标方案即可，没有的话先用文字 */}
+          &gt;_
+</button>
         </div>
       </header>
 
