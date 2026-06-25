@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { getMemoryDrawerState, hideMemory } from "../api/memory.js";
+import { getMemorySettings } from "../store/settings.js";
 
 export default function MemoryDrawer({ open, onClose }) {
   const [items, setItems] = useState([]);
   const [mode, setMode] = useState("mock");
   const [message, setMessage] = useState("");
+  const [dashboardUrl, setDashboardUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -12,6 +14,7 @@ export default function MemoryDrawer({ open, onClose }) {
     if (!open) return undefined;
 
     setLoading(true);
+    setDashboardUrl(getMemorySettings().ombreDashboardUrl || "");
     getMemoryDrawerState(30).then((state) => {
       if (!ignore) {
         setMode(state.mode);
@@ -46,7 +49,11 @@ export default function MemoryDrawer({ open, onClose }) {
         <div className="drawer-list">
           {loading && <div className="empty-note">读取中</div>}
           {!loading && mode === "kiwi_managed" && <div className="empty-note">{message}</div>}
-          {!loading && mode !== "kiwi_managed" && items.length === 0 && <div className="empty-note">暂无记忆</div>}
+          {!loading && mode === "ombre_dashboard" && !dashboardUrl && <div className="empty-note">请先在设置里填写 OmbreBrain Dashboard URL。</div>}
+          {!loading && mode === "ombre_dashboard" && dashboardUrl && (
+            <iframe className="memory-dashboard-frame" title="OmbreBrain Dashboard" src={dashboardUrl} />
+          )}
+          {!loading && !["kiwi_managed", "ombre_dashboard"].includes(mode) && items.length === 0 && <div className="empty-note">暂无记忆</div>}
           {items.map((memory) => (
             <article className="memory-card" key={memory.id}>
               <div className="memory-card-head">

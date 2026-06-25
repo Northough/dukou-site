@@ -1,4 +1,5 @@
 // src/api/terminalTransport.js
+import { getSettings } from "../store/settings.js";
 //
 // 终端层的连接边界。Chat 走 chatTransport，终端走这里，两条通道互不干扰。
 // 这个文件只负责：建立 WebSocket、收发数据、重连、关闭。
@@ -15,14 +16,7 @@ const MAX_RECONNECT_DELAY_MS = 15000;
  * 其他代码不需要改。
  */
 function readTerminalSettings() {
-  try {
-    const raw = localStorage.getItem("settings");
-    if (!raw) return { wsUrl: "", token: "" };
-    const parsed = JSON.parse(raw);
-    return parsed?.terminal ?? { wsUrl: "", token: "" };
-  } catch {
-    return { wsUrl: "", token: "" };
-  }
+  return getSettings().terminal || { wsUrl: "", token: "" };
 }
 
 /**

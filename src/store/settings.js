@@ -6,6 +6,7 @@ export const STORAGE_KEYS = {
   memorySettings: "dukou:memorySettings",
   transportSettings: "dukou:transportSettings",
   promptSettings: "dukou:promptSettings",
+  terminalSettings: "dukou:terminalSettings",
   contextLogs: "dukou:contextLogs",
   localUserId: "dukou:localUserId",
 };
@@ -78,6 +79,7 @@ export const DEFAULT_MEMORY_SETTINGS = {
   recentMessageLimit: 20,
   saveContextLogs: true,
   contextLogLimit: 10,
+  ombreDashboardUrl: "",
 };
 
 export const DEFAULT_TRANSPORT_SETTINGS = {
@@ -179,7 +181,7 @@ function mergeMemorySettings(value) {
   };
 
   merged.memoryMode = value?.memoryMode || value?.mode || merged.memoryMode;
-  if (!["mock", "kiwi_managed"].includes(merged.memoryMode)) {
+  if (!["mock", "kiwi_managed", "ombre_dashboard"].includes(merged.memoryMode)) {
     merged.memoryMode = "mock";
   }
   delete merged.mode;
@@ -213,6 +215,13 @@ function mergePromptSettings(value) {
   }
 
   return merged;
+}
+
+function mergeTerminalSettings(value) {
+  return {
+    ...DEFAULT_TERMINAL_SETTINGS,
+    ...(value || {}),
+  };
 }
 
 function sanitizeDisplayName(value, fallback) {
@@ -288,6 +297,7 @@ function mergeSettings(value) {
     transport: mergeTransportSettings(value?.transport, value?.memory),
     ui: mergeUiSettings(value?.ui),
     prompt: mergePromptSettings(value?.prompt),
+    terminal: mergeTerminalSettings(value?.terminal),
   };
 }
 
@@ -302,6 +312,7 @@ function persistSplitSettings(settings) {
   writeJson(STORAGE_KEYS.transportSettings, settings.transport);
   writeJson(STORAGE_KEYS.uiSettings, settings.ui);
   writeJson(STORAGE_KEYS.promptSettings, settings.prompt);
+  writeJson(STORAGE_KEYS.terminalSettings, settings.terminal);
   removeItem(LEGACY_SETTINGS_KEY);
 }
 
@@ -315,6 +326,7 @@ export function getSettings() {
     transport: readJson(STORAGE_KEYS.transportSettings),
     ui: readJson(STORAGE_KEYS.uiSettings),
     prompt: readJson(STORAGE_KEYS.promptSettings),
+    terminal: readJson(STORAGE_KEYS.terminalSettings),
   };
   const hasSplitSettings = Object.values(split).some(Boolean);
 

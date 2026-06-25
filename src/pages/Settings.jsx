@@ -953,8 +953,9 @@ function ModelSettingsPage({ settings, modelStatus, onBack, onRequestLeave, onSa
   );
 }
 function TerminalSettingsPage({ settings, onBack, onRequestLeave, onSave }) {
-  const [draft, setDraft] = useState(settings.terminal || { wsUrl: "", token: "" });
-  const dirty = JSON.stringify(draft) !== JSON.stringify(settings.terminal);
+  const currentTerminal = settings.terminal || DEFAULT_TERMINAL_SETTINGS;
+  const [draft, setDraft] = useState(currentTerminal);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(currentTerminal);
 
   const updateDraft = (patch) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -1435,9 +1436,28 @@ function MemoryContextSettingsPage({ settings, onBack, onRequestLeave, onSave, s
       <div className="settings-scroll">
         <Section title="记忆参数">
           <Row label={<LabelWithHelp topic="memoryMode">Memory Mode</LabelWithHelp>} sub="kiwi_managed 下长期记忆由 kiwi-mem 接管">
-            <Segmented value={draftMemory.memoryMode} options={["mock", "kiwi_managed"]} onChange={(value) => updateMemory({ memoryMode: value })} label="Memory Mode" />
+            <Segmented
+              value={draftMemory.memoryMode}
+              options={["mock", "kiwi_managed", "ombre_dashboard"]}
+              labels={{ kiwi_managed: "kiwi", ombre_dashboard: "Ombre" }}
+              onChange={(value) => updateMemory({ memoryMode: value })}
+              label="Memory Mode"
+            />
           </Row>
           {draftMemory.memoryMode === "kiwi_managed" && <InlineNotice>kiwi_managed 下前端不读取 kiwi 内部记忆，也不注入 mock 长期记忆。</InlineNotice>}
+          {draftMemory.memoryMode === "ombre_dashboard" && (
+            <>
+              <InlineNotice>OmbreBrain dashboard 接管记忆后台。前端不再注入 mock 长期记忆，记忆查看、搜索、归档由 OmbreBrain 页面处理。</InlineNotice>
+              <Row label="OmbreBrain Dashboard URL" sub="例如 https://your-domain/dashboard 或 http://127.0.0.1:18001/dashboard">
+                <input
+                  className="settings-control"
+                  value={draftMemory.ombreDashboardUrl || ""}
+                  onChange={(event) => updateMemory({ ombreDashboardUrl: event.target.value })}
+                  placeholder="https://your-domain/dashboard"
+                />
+              </Row>
+            </>
+          )}
           <Row label={<LabelWithHelp topic="chatTransport">Chat Transport</LabelWithHelp>} sub="kiwi_direct 会请求本机 kiwi-mem；gateway 仍为未来占位" stack>
             <Segmented
               value={draftTransport.chatTransport}

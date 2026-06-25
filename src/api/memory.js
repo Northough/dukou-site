@@ -27,21 +27,29 @@ function getMockMemories(limit) {
   return applyHidden(sampleMemories).slice(0, limit);
 }
 
-function isKiwiManaged(settings = getMemorySettings()) {
-  return settings?.memoryMode === "kiwi_managed";
+function isExternallyManaged(settings = getMemorySettings()) {
+  return ["kiwi_managed", "ombre_dashboard"].includes(settings?.memoryMode);
 }
 
 export async function getInjectedMemories(limit = 8, settings = getMemorySettings()) {
-  if (isKiwiManaged(settings)) return [];
+  if (isExternallyManaged(settings)) return [];
   return getMockMemories(limit);
 }
 
 export async function getMemoryDrawerState(limit = 30, settings = getMemorySettings()) {
-  if (isKiwiManaged(settings)) {
+  if (settings?.memoryMode === "kiwi_managed") {
     return {
       mode: "kiwi_managed",
       items: [],
       message: "长期记忆由 kiwi-mem 接管。当前前端不读取 kiwi 内部记忆列表，也不提供删除或归档操作。",
+    };
+  }
+
+  if (settings?.memoryMode === "ombre_dashboard") {
+    return {
+      mode: "ombre_dashboard",
+      items: [],
+      message: "OmbreBrain dashboard 接管记忆后台。当前前端不读取 mock 记忆，也不提供本地归档操作。",
     };
   }
 
@@ -53,12 +61,12 @@ export async function getMemoryDrawerState(limit = 30, settings = getMemorySetti
 }
 
 export async function getMemoryDrawerItems(limit = 30, settings = getMemorySettings()) {
-  if (isKiwiManaged(settings)) return [];
+  if (isExternallyManaged(settings)) return [];
   return getMockMemories(limit);
 }
 
 export async function hideMemory(id, settings = getMemorySettings()) {
-  if (isKiwiManaged(settings)) return { ok: false, mode: "kiwi_managed" };
+  if (isExternallyManaged(settings)) return { ok: false, mode: settings?.memoryMode || "external" };
 
   const hiddenIds = getHiddenIds();
   hiddenIds.add(String(id));
