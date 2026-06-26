@@ -68,6 +68,8 @@ export default function Bubble({
   moreActions = [],
 }) {
   const isUser = message.role === "user";
+  const isCommandCompleted = message.type === "command_completed" || message.meta?.type === "command_completed";
+  const isCommandCanceled = message.type === "command_canceled" || message.meta?.type === "command_canceled";
   const quote = getQuote(message);
   const avatarName = isUser ? displayNames.user : displayNames.assistant;
   const avatarImage = isUser ? avatarImages.user : avatarImages.assistant;
@@ -85,6 +87,40 @@ export default function Bubble({
   const hasMoreActions = !readOnly && !selectable && moreActions.length > 0;
   const [moreOpen, setMoreOpen] = useState(false);
   const longPressTimerRef = useRef(null);
+
+  if (isCommandCanceled) {
+    return (
+      <div
+        ref={messageRef}
+        className={"bubble-row is-user is-command-completed" + (highlighted ? " is-highlighted" : "")}
+      >
+        <div className="bubble-avatar-spacer" />
+        <div className="bubble-stack">
+          <div className="command-completed-pill is-canceled" title={message.meta?.title || ""}>
+            <span aria-hidden="true">{"\u00d7"}</span>
+            <strong>{"\u5df2\u53d6\u6d88"}</strong>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isCommandCompleted) {
+    return (
+      <div
+        ref={messageRef}
+        className={"bubble-row is-user is-command-completed" + (highlighted ? " is-highlighted" : "")}
+      >
+        <div className="bubble-avatar-spacer" />
+        <div className="bubble-stack">
+          <div className="command-completed-pill" title={message.meta?.title || ""}>
+            <span aria-hidden="true">✓</span>
+            <strong>已完成</strong>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const clearLongPress = () => {
     if (longPressTimerRef.current) {

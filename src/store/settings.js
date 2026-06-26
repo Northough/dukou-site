@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   transportSettings: "dukou:transportSettings",
   promptSettings: "dukou:promptSettings",
   terminalSettings: "dukou:terminalSettings",
+  commandSettings: "dukou:commandSettings",
   contextLogs: "dukou:contextLogs",
   localUserId: "dukou:localUserId",
 };
@@ -118,6 +119,12 @@ export const DEFAULT_TERMINAL_SETTINGS = {
   token: "",
 };
 
+export const DEFAULT_COMMAND_SETTINGS = {
+  apiBaseUrl: "",
+  token: "",
+  transportMode: "mock",
+};
+
 export const DEFAULT_SETTINGS = {
   model: DEFAULT_MODEL_SETTINGS,
   memory: DEFAULT_MEMORY_SETTINGS,
@@ -125,6 +132,7 @@ export const DEFAULT_SETTINGS = {
   transport: DEFAULT_TRANSPORT_SETTINGS,
   prompt: DEFAULT_PROMPT_SETTINGS,
   terminal: DEFAULT_TERMINAL_SETTINGS,
+  command: DEFAULT_COMMAND_SETTINGS,
 };
 
 function canUseLocalStorage() {
@@ -224,6 +232,19 @@ function mergeTerminalSettings(value) {
   };
 }
 
+function mergeCommandSettings(value) {
+  const merged = {
+    ...DEFAULT_COMMAND_SETTINGS,
+    ...(value || {}),
+  };
+
+  if (!["mock", "real"].includes(merged.transportMode)) {
+    merged.transportMode = "mock";
+  }
+
+  return merged;
+}
+
 function sanitizeDisplayName(value, fallback) {
   const text = String(value || "").trim();
   return text ? text.slice(0, 8) : fallback;
@@ -298,6 +319,7 @@ function mergeSettings(value) {
     ui: mergeUiSettings(value?.ui),
     prompt: mergePromptSettings(value?.prompt),
     terminal: mergeTerminalSettings(value?.terminal),
+    command: mergeCommandSettings(value?.command),
   };
 }
 
@@ -313,6 +335,7 @@ function persistSplitSettings(settings) {
   writeJson(STORAGE_KEYS.uiSettings, settings.ui);
   writeJson(STORAGE_KEYS.promptSettings, settings.prompt);
   writeJson(STORAGE_KEYS.terminalSettings, settings.terminal);
+  writeJson(STORAGE_KEYS.commandSettings, settings.command);
   removeItem(LEGACY_SETTINGS_KEY);
 }
 
@@ -327,6 +350,7 @@ export function getSettings() {
     ui: readJson(STORAGE_KEYS.uiSettings),
     prompt: readJson(STORAGE_KEYS.promptSettings),
     terminal: readJson(STORAGE_KEYS.terminalSettings),
+    command: readJson(STORAGE_KEYS.commandSettings),
   };
   const hasSplitSettings = Object.values(split).some(Boolean);
 
@@ -369,6 +393,10 @@ export function getTransportSettings() {
 
 export function getPromptSettings() {
   return getSettings().prompt;
+}
+
+export function getCommandSettings() {
+  return getSettings().command;
 }
 
 export function clearModelApiKey() {

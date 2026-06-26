@@ -526,6 +526,52 @@
   align-items: flex-end;
 }
 
+.bubble-row.is-command-completed .bubble-stack {
+  align-items: flex-end;
+}
+
+.command-completed-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 190px;
+  border: 1px solid rgba(132, 146, 134, 0.16);
+  border-radius: 999px;
+  background: rgba(247, 249, 246, 0.86);
+  color: var(--text-main);
+  padding: 6px 10px 6px 7px;
+  box-shadow: 0 5px 16px rgba(78, 88, 80, 0.06);
+}
+
+.command-completed-pill span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #9cad9c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.command-completed-pill.is-canceled {
+  border-color: rgba(158, 122, 122, 0.16);
+  background: rgba(250, 247, 247, 0.86);
+  box-shadow: 0 5px 16px rgba(106, 82, 82, 0.06);
+}
+
+.command-completed-pill.is-canceled span {
+  background: #c7aaaa;
+}
+
+.command-completed-pill strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .bubble-send-line {
   display: flex;
   align-items: center;
@@ -2492,6 +2538,272 @@
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--panel-bg);
+}
+
+.command-float-rail,
+.command-float-card {
+  position: absolute;
+  right: 14px;
+  z-index: 35;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.command-float-rail {
+  top: 42%;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  min-height: 68px;
+  border: 1px solid rgba(230, 214, 184, 0.72);
+  border-right: 0;
+  border-radius: 12px 0 0 12px;
+  background: rgba(255, 252, 244, 0.88);
+  box-shadow: -8px 10px 28px rgba(92, 70, 50, 0.12);
+  cursor: pointer;
+  padding: 7px 8px 7px 6px;
+  backdrop-filter: blur(12px);
+}
+
+.command-float-rail strong {
+  color: var(--text-main);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.command-rail-countdown {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background:
+    linear-gradient(rgba(255, 252, 244, 0.95), rgba(255, 252, 244, 0.95)) padding-box,
+    conic-gradient(rgba(42, 39, 35, 0.72) calc(var(--command-ring-progress, 0) * 1turn), rgba(42, 39, 35, 0.16) 0) border-box;
+  border: 2px solid transparent;
+}
+
+.command-rail-countdown i {
+  width: 5px;
+  height: 5px;
+  border-radius: 2px;
+  background: rgba(154, 123, 79, 0.72);
+}
+
+.command-float-rail small,
+.command-float-card em {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--accent-cold);
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.command-collapse-button {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--text-sub);
+  cursor: pointer;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.command-rail-line {
+  position: absolute;
+  top: 8px;
+  right: 2px;
+  bottom: 8px;
+  width: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(42, 39, 35, 0.16);
+}
+
+.command-rail-line i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: bottom center;
+  border-radius: inherit;
+  background: rgba(42, 39, 35, 0.72);
+}
+
+.command-float-icon {
+  display: grid;
+  place-items: center;
+  width: auto;
+  height: 18px;
+  flex: 0 0 auto;
+  color: rgba(154, 123, 79, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.command-float-card {
+  left: auto;
+  width: min(78vw, 302px);
+  bottom: 86px;
+  border: 1px solid rgba(230, 214, 184, 0.76);
+  border-radius: 8px;
+  background: rgba(255, 252, 244, 0.94);
+  box-shadow: 0 18px 50px rgba(92, 70, 50, 0.18);
+  padding: 14px;
+  backdrop-filter: blur(16px);
+  touch-action: pan-y;
+}
+
+.command-float-card header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.command-float-card header div {
+  min-width: 0;
+  flex: 1;
+}
+
+.command-float-card header strong {
+  display: block;
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.command-float-card header small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-sub);
+  font-size: 10px;
+}
+
+.command-float-time-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.command-float-time {
+  color: var(--text-main);
+  font-size: 42px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.command-start-time {
+  color: rgba(108, 104, 96, 0.48);
+  font-size: 12px;
+  line-height: 1.05;
+  margin-bottom: 3px;
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.command-float-progress {
+  height: 5px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(154, 123, 79, 0.14);
+}
+
+.command-float-progress i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-cold), var(--accent-warm));
+}
+
+.command-float-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 13px;
+  padding-right: 10px;
+}
+
+.command-float-actions button {
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 8px 13px;
+  font-size: 12px;
+}
+
+.command-cancel-button {
+  --cancel-progress: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: auto;
+  background:
+    linear-gradient(var(--panel-bg), var(--panel-bg)) padding-box,
+    conic-gradient(var(--danger) calc(var(--cancel-progress) * 1turn), rgba(154, 123, 79, 0.18) 0) border-box;
+  border: 2px solid transparent !important;
+  border-radius: 999px !important;
+  color: var(--text-sub);
+  padding: 8px 13px !important;
+  line-height: 1;
+  text-align: center;
+}
+
+.command-complete-button {
+  background: var(--accent-cold);
+  color: #fff;
+}
+
+.command-float-rail.is-overdue,
+.command-float-card.is-overdue {
+  border-color: rgba(205, 132, 64, 0.8);
+  background: rgba(255, 239, 218, 0.96);
+}
+
+.command-float-rail.is-overdue strong,
+.command-float-card.is-overdue .command-float-time {
+  color: #b4662e;
+}
+
+.command-float-rail.is-overdue .command-rail-line i {
+  background: #c8793a;
+}
+
+.command-float-rail.is-overdue .command-rail-countdown {
+  background:
+    linear-gradient(rgba(255, 239, 218, 0.96), rgba(255, 239, 218, 0.96)) padding-box,
+    conic-gradient(#c8793a calc(var(--command-ring-progress, 0) * 1turn), rgba(205, 132, 64, 0.24) 0) border-box;
 }
 
 .settings-root {

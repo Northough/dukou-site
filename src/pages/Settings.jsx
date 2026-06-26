@@ -7,6 +7,7 @@ import {
   DEFAULT_MEMORY_SETTINGS,
   DEFAULT_MODEL_SETTINGS,
   DEFAULT_PROMPT_SETTINGS,
+  DEFAULT_COMMAND_SETTINGS,
   DEFAULT_TERMINAL_SETTINGS,
   DEFAULT_TRANSPORT_SETTINGS,
   DEFAULT_UI_SETTINGS,
@@ -749,6 +750,7 @@ function SettingsHome({ settings, modelStatus, homeScrollTop = 0, onHomeScrollCh
     { id: "model", title: "模型接入", sub: "Provider、Base URL、Model、API Key", keywords: "provider base url model api key 测试模型 连接 temperature max tokens 输出模式" },
     { id: "persona", title: "人格", sub: "系统提示词、变量、最终提示词预览", keywords: "system prompt custom 默认 自定义 复制 恢复默认 名字 修改名字 机的名字 我的名字 机 我" },
     { id: "memory", title: "记忆与上下文", sub: "Memory Mode、Chat Transport、上下文预览", keywords: "mock direct_model kiwi backend gateway 注入日志 context logs manual preview recent messages" },
+    { id: "command", title: "指令浮窗", sub: "Command API、Token、mock / real", keywords: "command issue_command sse pending feedback token cloudflare" },
     { id: "security", title: "安全与数据", sub: "清除密钥、清空日志、导出聊天记录 JSON", keywords: "api key 清除 日志 导出 debug json 聊天记录 history archive" },
     { id: "appearance", title: "外观", sub: "主题、头像、聊天背景、顶端栏、输入框", keywords: "主题 dark light 夜间 日间 头像 背景 顶端栏 输入框 透明度 磨砂" },
     { id: "about", title: "关于", sub: "版本信息", keywords: "dukou 版本 version" },
@@ -987,6 +989,51 @@ function TerminalSettingsPage({ settings, onBack, onRequestLeave, onSave }) {
     </>
   );
 }
+
+function CommandSettingsPage({ settings, onBack, onRequestLeave, onSave }) {
+  const currentCommand = settings.command || DEFAULT_COMMAND_SETTINGS;
+  const [draft, setDraft] = useState(currentCommand);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(currentCommand);
+
+  const updateDraft = (patch) => {
+    setDraft((current) => ({ ...current, ...patch }));
+  };
+
+  return (
+    <>
+      <SubHeader title="指令浮窗" onBack={() => onRequestLeave(dirty, onBack)} actionLabel="保存" onAction={() => onSave(draft)} />
+      <div className="settings-scroll">
+        <Section title="连接">
+          <Row label="Transport Mode" sub="mock 用本地假指令调 UI；real 连接后端 Command API">
+            <Segmented
+              value={draft.transportMode || DEFAULT_COMMAND_SETTINGS.transportMode}
+              options={["mock", "real"]}
+              onChange={(value) => updateDraft({ transportMode: value })}
+              label="Command Transport Mode"
+            />
+          </Row>
+          <Row label="API Base URL" sub="例如 https://your-domain/command">
+            <input
+              className="settings-control"
+              value={draft.apiBaseUrl || ""}
+              onChange={(event) => updateDraft({ apiBaseUrl: event.target.value })}
+              placeholder="https://your-domain/command"
+            />
+          </Row>
+          <Row label="访问令牌">
+            <input
+              className="settings-control"
+              type="password"
+              value={draft.token || ""}
+              onChange={(event) => updateDraft({ token: event.target.value })}
+            />
+          </Row>
+        </Section>
+      </div>
+    </>
+  );
+}
+
 function PersonaPromptPage({ settings, onBack, onRequestLeave, onSave, showToast }) {
   const initialPrompt = settings.prompt.mode === "custom" ? settings.prompt.customSystemPrompt : DEFAULT_SYSTEM_PROMPT;
   const [promptText, setPromptText] = useState(initialPrompt);
@@ -2269,6 +2316,14 @@ export default function Settings() {
           onBack={() => setPage("home")}
           onRequestLeave={requestLeaveConfirm}
           onSave={(terminal) => persist({ ...settings, terminal })}
+        />
+      )}
+      {page === "command" && (
+        <CommandSettingsPage
+          settings={settings}
+          onBack={() => setPage("home")}
+          onRequestLeave={requestLeaveConfirm}
+          onSave={(command) => persist({ ...settings, command })}
         />
       )}
       {page === "persona" && (

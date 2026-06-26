@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Bubble from "../components/Bubble.jsx";
 import ChatHistoryOverlay from "../components/ChatHistoryOverlay.jsx";
+import CommandFloatWindow from "../components/CommandFloatWindow.jsx";
 import MemoryDrawer from "../components/MemoryDrawer.jsx";
 import MessageInput from "../components/MessageInput.jsx";
 import StatusBanner from "../components/StatusBanner.jsx";
@@ -11,6 +12,7 @@ import emotionCalmSrc from "../assets/emotion-calm.svg";
 import emotionHappySrc from "../assets/emotion-happy.svg";
 import emotionSadSrc from "../assets/emotion-sad.svg";
 import { getEmotionState, getInjectedMemories } from "../api/memory.js";
+import { getPendingCommandFeedback } from "../api/commandTransport.js";
 import { getRecentMessages, insertMessage, markDuMessagesRead, markUserMessagesRead, updateMessageRecord } from "../api/messages.js";
 import { sendChatRequest } from "../api/chatTransport.js";
 import { normalizeModelError } from "../api/modelClient.js";
@@ -341,7 +343,11 @@ function isLocalBlockedMessage(message) {
 }
 
 function getModelContextMessages(messages) {
-  return getVisibleMessages(messages);
+  return getVisibleMessages(messages).filter(
+    (message) =>
+      !["command_completed", "command_canceled"].includes(message.type) &&
+      !["command_completed", "command_canceled"].includes(message.meta?.type)
+  );
 }
 
 function getResponseGroupId(message) {
@@ -473,6 +479,43 @@ function buildUiAwarenessContext({ affordanceState }) {
   return lines.length ? { role: "user", content: lines.join("\n\n") } : null;
 }
 
+function formatCommandFeedbackDuration(ms) {
+  if (!Number.isFinite(Number(ms))) return "";
+  const totalSeconds = Math.max(0, Math.round(Number(ms) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}分${String(seconds).padStart(2, "0")}秒`;
+}
+
+function buildCommandFeedbackContext(feedbackItems) {
+  const items = Array.isArray(feedbackItems) ? feedbackItems : [];
+  if (!items.length) return null;
+
+  const lines = items.slice(0, 6).map((item) => {
+    const duration = formatCommandFeedbackDuration(item.duration_ms);
+    const delta = Number(item.vs_countdown_ms);
+    const deltaText = Number.isFinite(delta)
+      ? delta > 0
+        ? `，比倒计时慢 ${formatCommandFeedbackDuration(delta)}`
+        : `，比倒计时快 ${formatCommandFeedbackDuration(Math.abs(delta))}`
+      : "";
+    return `- ${item.title || "未命名指令"}：已完成，用时 ${duration || "未知"}${deltaText}`;
+  });
+
+  return {
+    role: "user",
+    content: `【指令完成反馈】\n这些是我刚完成的指令结果。你可以自然知道，不要机械复述。\n${lines.join("\n")}`,
+  };
+}
+
+async function getCommandFeedbackContext() {
+  try {
+    return buildCommandFeedbackContext(await getPendingCommandFeedback());
+  } catch {
+    return null;
+  }
+}
+
 function shouldCreateAutoKeepsake(text) {
   return AUTO_KEEPTRIGGERS.some((trigger) => text.includes(trigger));
 }
@@ -585,6 +628,7 @@ function quoteFromMessage(message, displayNames = DEFAULT_DISPLAY_NAMES) {
 }
 
 function makeUiMessage({
+  type = "message",
   role,
   content,
   readByDu = false,
@@ -604,6 +648,7 @@ function makeUiMessage({
   const normalizedQuote = normalizeQuotePayload(quote || meta.quote);
   return {
     id: `ui-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    type,
     session_id: getSessionId(),
     conversationId,
     chatSpaceId,
@@ -623,6 +668,7 @@ function makeUiMessage({
     reasoningVisible,
     meta: {
       chatSpaceId,
+      type,
       ...(responseGroupId ? { responseGroupId } : {}),
       ...meta,
       ...(excludedFromContext ? { excludedFromContext: true } : {}),
@@ -834,6 +880,55 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
 
   const appendMessage = (message) => {
     replaceMessages([...messagesRef.current, message]);
+  };
+
+  const appendCommandCompletedMessage = async (command = {}) => {
+    const durationMs = Number(command.duration_ms);
+    const receiptMessage = makeUiMessage({
+      type: "command_completed",
+      role: "user",
+      content: "已完成",
+      readByDu: true,
+      conversationId: activeChatSpaceRef.current,
+      chatSpaceId: activeChatSpaceRef.current,
+      meta: {
+        type: "command_completed",
+        source: "command_float",
+        commandId: command.command_id || command.id,
+        title: command.title || "",
+        durationMs: Number.isFinite(durationMs) ? durationMs : undefined,
+        vsCountdownMs: Number.isFinite(Number(command.vs_countdown_ms)) ? Number(command.vs_countdown_ms) : undefined,
+      },
+    });
+
+    appendMessage(receiptMessage);
+    if (isPersistedChatSpace(activeChatSpaceRef.current)) {
+      await insertMessage(receiptMessage);
+    }
+    window.setTimeout(() => scrollToBottom(), 50);
+  };
+
+  const appendCommandCanceledMessage = async (command = {}) => {
+    const receiptMessage = makeUiMessage({
+      type: "command_canceled",
+      role: "user",
+      content: "\u5df2\u53d6\u6d88",
+      readByDu: true,
+      conversationId: activeChatSpaceRef.current,
+      chatSpaceId: activeChatSpaceRef.current,
+      meta: {
+        type: "command_canceled",
+        source: "command_float",
+        commandId: command.command_id || command.id,
+        title: command.title || "",
+      },
+    });
+
+    appendMessage(receiptMessage);
+    if (isPersistedChatSpace(activeChatSpaceRef.current)) {
+      await insertMessage(receiptMessage);
+    }
+    window.setTimeout(() => scrollToBottom(), 50);
   };
 
   const updateMessage = (id, patch) => {
@@ -1107,6 +1202,8 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
     const uiAwarenessContext =
       chatSpaceId === "main" ? buildUiAwarenessContext({ affordanceState: readChatAffordanceState() }) : null;
     const awarenessMessages = uiAwarenessContext ? [uiAwarenessContext] : [];
+    const commandFeedbackContext = chatSpaceId === "main" && !opening ? await getCommandFeedbackContext() : null;
+    const commandFeedbackMessages = commandFeedbackContext ? [commandFeedbackContext] : [];
     const blockedNoteInstruction = blockedNote
       ? {
           role: "user",
@@ -1123,7 +1220,13 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
             content: "我刚刚打开了AI 陪伴前端。根据你们的历史说第一句话。不超过 20 字，不要问好，说点真实的。",
           },
         ]
-      : [timeContext, ...awarenessMessages, ...(blockedNoteInstruction ? [blockedNoteInstruction] : []), ...recentMessages];
+      : [
+          timeContext,
+          ...awarenessMessages,
+          ...commandFeedbackMessages,
+          ...(blockedNoteInstruction ? [blockedNoteInstruction] : []),
+          ...recentMessages,
+        ];
     const contextLog = createContextLog(
       {
         trigger: opening ? "opening" : blockedNote ? "blocked_note" : "user_message",
@@ -2183,6 +2286,7 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
         </div>
       )}
       {historyOpen && <ChatHistoryOverlay onClose={() => setHistoryOpen(false)} displayNames={displayNames} avatarImages={avatarImages} avatarOpacities={avatarOpacities} />}
+      <CommandFloatWindow onCommandCompleted={appendCommandCompletedMessage} onCommandCanceled={appendCommandCanceledMessage} />
       <MemoryDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </section>
   );

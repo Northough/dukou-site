@@ -83,6 +83,7 @@ export function normalizeArchivedMessage(record = {}) {
 
   return {
     id: record.id || makeMessageId(),
+    type: record.type || record.meta?.type || "message",
     conversationId,
     chatSpaceId: record.chatSpaceId || record.meta?.chatSpaceId || conversationId,
     sessionId,

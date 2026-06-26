@@ -13,6 +13,7 @@ export async function getRecentMessages(limit = 20, options) {
 
 export async function insertMessage({
   id,
+  type,
   session_id,
   sessionId,
   conversationId,
@@ -38,6 +39,7 @@ export async function insertMessage({
 }) {
   const record = normalizeArchivedMessage({
     id,
+    type,
     session_id: session_id || sessionId,
     conversationId,
     chatSpaceId,

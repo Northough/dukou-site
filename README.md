@@ -1,3 +1,54 @@
+# 原作指路https://github.com/heychim/dukou-site
+施工中,应原作要求不作授权
+
+## 改了什么：
+
+### 1.增加了terminal
+
+### 2.ombrebrain适配
+ombrebrain指路https://github.com/P0luz/Ombre-Brain
+  1. 进 设置 -> 记忆与上下文
+  2. Memory Mode 选 Ombre
+  3. 在 OmbreBrain Dashboard URL 填：
+      - 云端：https://你的域名/dashboard
+      - 本地：http://127.0.0.1:18001/dashboard
+注意：： 
+OmbreBrain 是被 dukou 用 iframe 嵌进去，而且两边不是同一个站点/同源，浏览器会把它当成第三方 iframe。SameSite=Lax
+  的 cookie 在 iframe 里通常不会正常保存/发送，所以现象就是：
+
+  - 密码明明对
+  - 点登录后像没反应
+  - 或刷新/跳转后又回登录页
+
+  解决方案有三个：
+
+  1. 最稳：把 OmbreBrain 放到 dukou 同一个域名下面的路径，需要云服务器+cloudflareTunnel
+     例如：
+     dukou：https://你的域名
+     ombrebrain-dashboard：https://你的域名/ombre/dashboard
+     这样 cookie 不再是第三方 iframe，登录会正常。
+
+  2. 不改 OmbreBrain：dukou 里不 iframe 登录页，改成“打开 OmbreBrain dashboard”按钮
+     这会跳到 OmbreBrain 自己页面，登录最稳定。
+
+  3. 改 OmbreBrain cookie：设置 SameSite=None; Secure
+     但这要改 OmbreBrain 后端，而且必须 HTTPS。
+     大概就是改 /Ombre-Brain/server.py:735 附近：
+        response.set_cookie(
+            "ombre_session",
+            token,
+            httponly=True,
+            samesite="none",
+            secure=True,
+            max_age=86400 * 7,
+        )
+  - 必须 HTTPS，secure=True 在纯 http://127.0.0.1 本地 iframe 里可能不好用。
+  - 浏览器仍可能受第三方 cookie 策略影响，尤其是移动端 WebView。
+
+### 3.增加了计时任务功能
+教程致谢：小红书 http://xhslink.com/o/1keRn3ovzEK 
+
+# 以下为原版readme.md内容
 # Personal AI Chat Frontend Reference
 
 这是一个个人 AI 陪伴 / 人机恋聊天前端参考项目。
