@@ -12,6 +12,7 @@ export default function App() {
   const [hideFunctionBottomNav, setHideFunctionBottomNav] = useState(false);
   const [pendingChatQuote, setPendingChatQuote] = useState(null);
   const [terminalOpen, setTerminalOpen] = useState(false);
+  const [functionInitialPanel, setFunctionInitialPanel] = useState("schedule");
 
   useEffect(() => {
     if (activeTab !== "function") {
@@ -27,6 +28,18 @@ export default function App() {
     setActiveTab("chat");
   }
 
+  function openFunctionPanel(panelId = "schedule") {
+    setFunctionInitialPanel(panelId);
+    setActiveTab("function");
+  }
+
+  function handleBottomTabChange(tabId) {
+    if (tabId === "function") {
+      setFunctionInitialPanel("schedule");
+    }
+    setActiveTab(tabId);
+  }
+
   return (
     <div className="app-backdrop">
       <main className="phone-shell" aria-label="AI 陪伴前端">
@@ -40,17 +53,23 @@ export default function App() {
                   pendingQuote={pendingChatQuote}
                   onPendingQuoteAccepted={() => setPendingChatQuote(null)}
                   onOpenSettings={() => setActiveTab("settings")}
-                  onOpenFunction={() => setActiveTab("function")}
+                  onOpenFunction={() => openFunctionPanel("schedule")}
+                  onOpenReminders={() => openFunctionPanel("reminders")}
                   onOpenTerminal={() => setTerminalOpen(true)}
                 />
               )}
               {activeTab === "function" && (
-                <FunctionPage onDetailOverlayChange={setHideFunctionBottomNav} onOpenChatWithQuote={openChatWithQuote} />
+                <FunctionPage
+                  initialPanel={functionInitialPanel}
+                  onDetailOverlayChange={setHideFunctionBottomNav}
+                  onExit={() => setActiveTab("chat")}
+                  onOpenChatWithQuote={openChatWithQuote}
+                />
               )}
               {activeTab === "settings" && <Settings />}
             </div>
             {activeTab !== "chat" && !(activeTab === "function" && hideFunctionBottomNav) && (
-              <BottomNav activeTab={activeTab} onChange={setActiveTab} />
+              <BottomNav activeTab={activeTab} onChange={handleBottomTabChange} />
             )}
             
           {terminalOpen && <TerminalOverlay onClose={() => setTerminalOpen(false)} />}

@@ -1,339 +1,535 @@
-# Frontend Reference
+# Dukou 前端架构与后端对接说明
 
-## 1. 项目定位
+本文对应当前 `dukou-site` 前端实现，目标是给后续后端建设一个清晰边界：
 
-这是一个 AI 陪伴聊天前端参考，不是完整产品。核心体验是打开后聊天对象就在场，以类 IM 的私聊方式承载多条短消息、打字状态、引用消息、本地历史回看，以及动态、信箱、书影、日程、提醒、日记等生活化模块。
+- 现在前端已经有哪些页面、状态和数据模型
+- 哪些能力已经有 transport 占位，哪些还是纯前端本地态
+- 后端真正开工时，接口应该怎么落
+- 哪些地方不能按 CCC 原样照抄
 
-## 2. 技术栈
+## 1. 当前产品边界
 
-- React
-- Vite
-- 移动端优先页面组织
-- Capacitor 预留 / Android APK 路线
-- localStorage
-- IndexedDB
-- mock 数据
-- OpenAI-compatible 调用边界
+当前前端不是通用 IM，也不是完整 CCC 复刻，核心是一个移动端角色聊天壳：
 
-## 3. 目录结构
+- 单聊角色窗口：`Nortia`、`岑序`、`渡口`
+- 角色切换：在聊天页左上头像入口里切换不同窗口
+- 群聊窗口：前端已有独立页面和 transport，但仍偏 mock/占位
+- Function 页：现在只保留两块
+  - `日程`：全局，属于 `17`
+  - `提醒`：按 AI 角色归属
+- 设置页：目前大部分仍是全局设置，后面建议拆成角色级设置
+- Terminal 浮层：独立于聊天 transport，走单独 WebSocket
 
-```txt
-src/pages/          页面层：Chat / FunctionPage / Settings / Entry 等
-src/components/     组件层：聊天气泡、输入框、历史搜索、功能页组件等
-src/api/            前端 API 抽象：模型调用、chatTransport、messages、memory mock 等
-src/store/          本地状态：settings、session、context logs、功能页 localStorage 等
-src/systems/        系统逻辑：system prompt、时间上下文、特殊标签解析等
-src/styles/         样式
-src/assets/         视觉素材和字体资源
-docs/               项目说明文档
+旧首页里的书影、动态、潮汐标本相关旧功能，运行态已经基本移出主流程，不应再作为后端建设依据。
+
+## 2. 页面与模块结构
+
+### 2.1 App 壳层
+
+`src/App.jsx`
+
+- `Entry` 负责进入页
+- `Chat` 是主聊天页
+- `FunctionPage` 是日程/提醒页
+- `Settings` 是设置页
+- `TerminalOverlay` 是全屏终端浮层
+
+状态切换逻辑：
+
+- `activeTab = chat | function | settings`
+- 聊天页顶部提醒按钮会打开 `FunctionPage(reminders)`
+- 底部 Function tab 会打开 `FunctionPage(schedule)`
+
+这意味着前端已经把“提醒”和“日程”明确区分成两个入口，而不是一个混合功能广场。
+
+### 2.2 Chat 主聊天页
+
+`src/pages/Chat.jsx`
+
+这是当前最重的页面，承担了：
+
+- 角色单聊窗口切换
+- 消息展示、发送、引用、重发、编辑
+- 本地消息归档联动
+- 记忆/上下文注入
+- 设置入口、提醒入口、终端入口
+- 聊天窗口抽屉
+
+当前聊天窗口集合：
+
+- `main` -> Nortia
+- `group` -> 群聊
+- `cenxu` -> 岑序
+- `dukou` -> 渡口
+
+注意：
+
+- UI 上虽然有 `group` 窗口，但它和单聊的数据模型并不完全相同
+- 单聊消息归档是 `conversationId/chatSpaceId` 维度
+- 群聊是单独一套 `groupTransport`
+
+所以后端不要把单聊和群聊硬塞成同一个接口格式。
+
+### 2.3 Function 页
+
+`src/pages/FunctionPage.jsx`
+
+现在只剩两个业务面板：
+
+#### 日程 Schedule
+
+- 全局数据，只属于 `17`
+- 当前存在日期切换、滑动切换、添加、编辑、完成、取消、过期
+- 目前按天展示，时间字段为：
+  - `date`
+  - `startsAt`
+  - `endsAt`
+- 支持无时间任务，落在“稍后 / 未安排”
+
+#### 提醒 Reminders
+
+- 每条提醒必须有 `ownerRole`
+- 当前 owner 角色是：
+  - `nortia`
+  - `cenxu`
+  - `dukou`
+- 提醒状态当前使用：
+  - `pending`
+  - `done`
+  - `snoozed`
+  - `expired`
+
+其中 UI 文案已经被改写为更贴近日常使用的语义，后端真正存储时可以保留英文状态码，前端负责映射。
+
+最重要的一条业务规则：
+
+- 提醒属于“发出提醒的角色”
+- 当用户把提醒标记为“已完成”或“已取消”时，这个反馈会被写回该角色对应的聊天窗口
+
+当前这一步已经通过本地消息归档完成，后端接入后也必须保留这个模型，不然提醒和聊天会断链。
+
+### 2.4 GroupChat 页
+
+`src/pages/GroupChat.jsx`
+
+群聊页已经有完整前端结构：
+
+- roster 拉取
+- 轮询消息
+- 发送消息
+- 按角色筛消息
+- `@角色` 提及
+
+但它现在仍是“前端已定形，后端未正式接入”的状态。可以把它视为群聊后端 contract 的前置草图。
+
+### 2.5 Settings 页
+
+`src/pages/Settings.jsx`
+
+设置页目前还是“全局设置优先”的实现，包含：
+
+- 模型设置
+- 记忆设置
+- transport 设置
+- terminal 设置
+- command 设置
+- UI 设置
+
+这和你现在的产品目标并不完全一致。
+
+后面如果做正式后端，建议优先拆成：
+
+- 全局设置
+  - 用户信息
+  - 全局日程
+  - 设备级 transport/terminal 基础地址
+- 角色设置
+  - system prompt
+  - 模型接入
+  - 记忆模式
+  - 角色自己的提醒策略
+
+## 3. 前端数据层
+
+## 3.1 本地消息归档
+
+`src/api/messageArchive.js`
+
+当前消息归档使用 IndexedDB：
+
+- DB: `dukou-message-archive`
+- store: `messages`
+
+核心索引：
+
+- `conversationCreatedAt`
+- `conversationRoleCreatedAt`
+- `createdAt`
+
+消息记录的关键字段：
+
+- `id`
+- `conversationId`
+- `chatSpaceId`
+- `sessionId`
+- `role`
+- `content`
+- `createdAt`
+- `quote`
+- `responseGroupId`
+- `status`
+- `meta`
+
+这里的 `conversationId/chatSpaceId` 很关键。后端如果以后落库，必须保留这个层级，因为当前前端已经把它当成窗口隔离键来用了。
+
+建议后端消息表至少保留：
+
+- `message_id`
+- `conversation_id`
+- `chat_space_id`
+- `sender_type` (`user|assistant|system`)
+- `sender_role_id`
+- `content`
+- `created_at`
+- `status`
+- `quote_message_id`
+- `response_group_id`
+- `meta_json`
+
+### 3.2 Function 本地存储
+
+`src/store/functionLocalStore.js`
+
+现在 Function 相关 localStorage 只保留：
+
+- `dukou:reminders:v1`
+- `dukou:schedule:v1`
+
+这是一个很重要的收缩结果，说明旧功能已经不应该继续反向污染后端设计。
+
+对应后端时，建议也只先建两类资源：
+
+- `schedule_items`
+- `role_reminders`
+
+不要把“动态”“书影”“旧 function 卡片”一起带回去。
+
+### 3.3 设置存储
+
+`src/store/settings.js`
+
+当前设置拆成多块 localStorage：
+
+- `dukou:modelSettings`
+- `dukou:uiSettings`
+- `dukou:memorySettings`
+- `dukou:transportSettings`
+- `dukou:promptSettings`
+- `dukou:terminalSettings`
+- `dukou:commandSettings`
+
+问题在于：这些现在还是“应用级”，不是“角色级”。
+
+如果后端开始建设，建议直接跳过“先做全局再迁移”的路线，后端 schema 从一开始就做成：
+
+- `user_settings`
+- `role_settings`
+- `role_model_bindings`
+- `role_memory_bindings`
+
+不然之后还要二次迁移。
+
+## 4. transport 分层
+
+## 4.1 单聊 transport
+
+`src/api/chatTransport.js`
+
+当前支持四种 transport 标识：
+
+- `mock`
+- `direct_model`
+- `kiwi_direct`
+- `backend_gateway`
+
+其中真正有意义的是：
+
+- `direct_model`：前端直连模型
+- `kiwi_direct`：前端直连本地记忆/模型网关
+
+`backend_gateway` 现在只是占位，还没有实际请求。
+
+这意味着如果你们要上真正后端，最合理的做法不是继续加强 `direct_model`，而是把 `backend_gateway` 做实，作为所有正式聊天能力的统一入口。
+
+## 4.2 群聊 transport
+
+`src/api/groupTransport.js`
+
+这里已经定义了很清晰的后端接口草案：
+
+- `GET /group/roster`
+- `GET /group/poll?since=...&limit=...`
+- `POST /group/send`
+
+mock 和 real 两套模式都已经写了。
+
+当前 `real` 模式默认请求头：
+
+- `Content-Type: application/json`（有 body 时）
+- `X-Auth-Token: <token>`（如果配置了 token）
+
+这套接口适合“HTTP 轮询 tmux/capture + POST tmux/send”那条路线，尤其适合你现在不是云服务器、而是本机或局域网部署的阶段。
+
+## 4.3 Terminal transport
+
+`src/api/terminalTransport.real.js`
+
+终端是独立通道，不跟聊天共用 transport。
+
+当前约定：
+
+- 前端连接一个 WebSocket 终端端点
+- 用户输入直接发原始文本
+- resize 发：
+
+```json
+{"__resize":{"cols":80,"rows":24}}
 ```
 
+后端只需要做一件事：
 
-## 3.1 前端架构是怎么写的
+- 把 PTY 输出原样推给前端
 
-这个项目是一个轻量 React + Vite 前端，没有引入大型路由、全局状态框架或 UI 组件库。整体结构按“页面层 + 组件层 + 本地数据层 + 模型调用边界”组织。
+这很适合 Ubuntu 上用 `tmux + pty + websocket bridge` 来实现。
 
-- `src/App.jsx` 是应用壳：控制入口页、聊天页、功能页、设置页之间的切换，并承接“从功能页引用内容回到聊天”的跳转。
-- `src/pages/Chat.jsx` 是聊天主体验：负责消息列表、发送、模型回复、引用、历史搜索、窗口隔离、拉黑小纸条、情绪窗口、潮汐标本等交互。
-- `src/pages/FunctionPage.jsx` 是生活功能页：负责动态、信箱、书影、日程、提醒、小机日记、月经周期，以及这些模块之间的本地联动。
-- `src/pages/Settings.jsx` 是配置页：负责模型接入、人格/system prompt、记忆与上下文、安全与数据、外观、运行与系统状态。
-- `src/components/` 放可复用 UI，比如消息气泡、输入框、历史搜索、底部导航和功能页局部组件。
-- `src/store/` 放本地状态读写，主要是 `localStorage`。
-- `src/api/` 放前端 API 抽象，比如消息读写、IndexedDB 归档、模型调用、chatTransport。
-- `src/systems/` 放系统逻辑，比如 system prompt、上下文拼装、时间上下文和特殊标签解析。
+## 4.4 Command transport
 
-页面之间没有复杂路由。当前主要靠 `App.jsx` 的 `activeTab` 和页面内部状态切换。这样做的好处是容易理解和改造，代价是功能页内部状态会比较集中，继续扩展时要控制文件体量。
+仓库里还有 command 浮窗相关 transport，但它和当前主目标不是一条主线。
 
-## 3.2 如果要修改，应该怎么改
+如果后端资源有限，优先级应该低于：
 
-先判断你要改的是哪一层：
+1. 单聊网关
+2. 群聊网关
+3. 提醒/日程持久化
+4. 终端桥接
 
-- 改聊天 UI：优先看 `src/pages/Chat.jsx`、`src/components/Bubble.jsx`、`src/components/MessageInput.jsx`、`src/styles/chat.css`。
-- 改功能页模块：优先看 `src/pages/FunctionPage.jsx`、`src/components/function/`、`src/store/functionLocalStore.js`、`src/styles/function.css`。
-- 改设置项：优先看 `src/pages/Settings.jsx` 和 `src/store/settings.js`。
-- 改模型请求：只从 `src/api/chatTransport.js`、`src/api/modelClient.js`、`src/api/providers/` 下手。
-- 改 system prompt 或上下文：看 `src/systems/context.js`、`src/systems/pipeline.js`、`src/systems/specialActions.js`。
-- 改本地聊天历史：看 `src/api/messages.js` 和 `src/api/messageArchive.js`。
+## 5. 后端建设建议
 
-推荐修改顺序：
+## 5.1 建议的后端边界
 
-1. 先跑 `mock` 模式，确认 UI 和本地交互成立。
-2. 只改相关页面和组件，不先抽大框架。
-3. 需要保存状态时，先用现有 `localStorage` / IndexedDB 模式。
-4. 需要模型能力时，统一走 `chatTransport`，不要在页面里直接写 fetch。
-5. 需要真实长期数据时，先设计 Backend Gateway，再让前端调用统一接口。
-6. 改完后至少跑 `npm run build`。
+如果后端正式开工，建议直接拆成四块：
 
-不要把未来能力写成当前能力。比如图片上传、语音、电话、通知、自动唤醒、长期记忆、Backend Gateway，在这个公开副本里都只是前端占位或接入方向。
+### A. chat gateway
 
-## 3.3 修改时要注意什么
+负责单聊：
 
-- 这是聊天式前端，不是 dashboard。新功能应该服务“私聊陪伴”体验，不要改成后台管理面板。
-- 移动端优先。新增按钮、弹窗、详情页时先考虑窄屏。
-- 用户可见文案要保持亲密、短、像私聊，不要变成说明书。
-- 不要在代码里提交真实 API key、token、聊天记录、用户数据或记忆库导出。
-- 不要让搜索结果、历史回看、普通书影短评自动进入长期记忆；当前它们主要是用户自查或本地展示。
-- 不要在页面组件里直接接多个后端服务；统一从 `src/api/` 增加边界。
-- 不要把 `localStorage` 当生产数据库。公开副本里的本地状态只适合 MVP、demo 和个人测试。
-- 修改素材时保留授权说明；正式公开或商用前替换成自己有授权的素材。
+- 接收前端消息
+- 组装角色 prompt / memory / recent messages
+- 调模型或调本地 agent
+- 回传 assistant 消息
+- 持久化消息
 
-## 3.4 整个前端的边界
+### B. group gateway
 
-当前前端能做：
+负责群聊：
 
-- 展示聊天界面、发送消息、显示 mock 或模型回复。
-- 保存本地设置、UI 状态、功能页部分状态。
-- 用 IndexedDB 归档本地聊天历史。
-- 展示动态、信箱、书影、日程、提醒、小机日记、月经周期等本地模块。
-- 通过 `direct_model` 在个人测试时前端直连 OpenAI-compatible / Anthropic 风格接口。
-- 保留 `kiwi_direct` 和 `backend_gateway` 的方向说明。
+- 维护 roster
+- 接收用户群聊消息
+- 决定哪些角色该回复
+- 轮询返回新增消息
 
-当前前端不负责：
+第一版完全可以就是：
 
-- 保存生产级真实用户数据。
-- 保存生产 API key。
-- 运行真实后端、数据库、任务调度、通知服务。
-- 管理真实长期记忆库。
-- 处理真实文件上传、图片上传、语音、电话、Android 后台能力。
-- 作为 Supabase / Notion / kiwi-mem 数据仓库。
+- HTTP 轮询读消息
+- HTTP POST 发消息
+- 后端内部用 tmux/session 驱动不同 agent
 
-一句话：前端负责体验、展示、本地状态和统一调用入口；真实数据、真实密钥、长期记忆、工具服务和多端能力应该交给后端。
+### C. scheduler/reminder service
 
-## 3.5 后端计划应该怎么接
+负责：
 
-建议后续新建独立 Backend Gateway，不要把真实后端逻辑塞进前端。
+- 全局日程
+- 角色提醒
+- 提醒状态流转
+- 把提醒反馈写回对应角色对话
 
-```txt
-React 前端
-  ↓
-Backend Gateway
-  ↓
-模型服务 / 记忆网关 / 文件服务 / 通知服务 / 任务调度
+### D. terminal bridge
+
+负责：
+
+- WebSocket
+- PTY/tmux
+- 认证
+- resize
+
+这四块可以是一个服务，也可以是一个进程里的四个模块，但接口边界最好分清。
+
+## 5.2 推荐的第一阶段接口
+
+如果你现在要尽快从“纯前端”走到“能用”，我建议第一阶段只做这些：
+
+### 单聊
+
+- `POST /chat/send`
+- `GET /chat/history?chat_space_id=...&before=...`
+
+`POST /chat/send` 请求体建议至少包含：
+
+```json
+{
+  "chat_space_id": "cenxu",
+  "conversation_id": "cenxu",
+  "message": {
+    "role": "user",
+    "content": "..."
+  },
+  "quote": null
+}
 ```
 
-前端改造方向：
+返回建议至少包含：
 
-- `mock` 继续保留，作为 UI 开发和离线演示模式。
-- `direct_model` 只作为个人本地测试模式。
-- `backend_gateway` 从占位改成真实请求统一入口。
-- 页面不直接知道具体模型供应商、数据库或记忆库，只调用网关接口。
-
-后端可以逐步提供：
-
-- `/api/health`：健康检查。
-- `/api/chat`：统一聊天请求，后端负责模型 key、模型选择、工具调用和错误收口。
-- `/api/messages`：真实消息保存和分页读取。
-- `/api/memory/context`：获取可注入上下文或记忆摘要。
-- `/api/moments`：动态流。
-- `/api/mail`：信件、明信片、收藏、引用。
-- `/api/reviews`：书影记录和小机评价生成。
-- `/api/schedule`、`/api/reminders`：日程和提醒。
-- `/api/diary`：小机日记 / daily digest。
-- `/api/uploads`：图片和文件上传。
-- `/api/export`：Markdown / Obsidian 等导出。
-
-接后端时，先接聊天和健康检查，再接消息归档，然后接功能页数据。不要一开始就把所有模块一次性后端化。
-
-## 3.6 整个前端页怎么运作
-
-当前页面运行方式可以理解为：
-
-```txt
-Entry
-  ↓
-App.jsx
-  ├─ Chat
-  ├─ FunctionPage
-  └─ Settings
+```json
+{
+  "ok": true,
+  "assistant_message": {
+    "id": "message_xxx",
+    "conversationId": "cenxu",
+    "chatSpaceId": "cenxu",
+    "role": "assistant",
+    "content": "...",
+    "createdAt": "2026-06-27T12:00:00.000Z",
+    "responseGroupId": "reply-cenxu-xxx",
+    "meta": {}
+  }
+}
 ```
 
-- 首屏是 `Entry`，进入后由 `App.jsx` 切到主界面。
-- `Chat` 是默认主页面，聊天页顶部可以进入功能页和设置页。
-- `FunctionPage` 负责生活化模块。它可以把信件、明信片、动态等内容整理成 quote，再交给 `App.jsx` 跳回聊天。
-- `Settings` 修改模型、人格、外观、本地数据等配置，保存到 `localStorage`。
-- 底部导航只在非聊天页显示；功能页详情打开时可以隐藏底部导航，避免遮挡沉浸式二级页。
+### 群聊
 
-核心数据流：
+- `GET /group/roster`
+- `GET /group/poll`
+- `POST /group/send`
 
-```txt
-用户操作
-  ↓
-页面本地状态 / localStorage / IndexedDB
-  ↓
-chatTransport 或本地模块逻辑
-  ↓
-UI 更新
-```
+这三条直接沿用当前 `groupTransport.js` 即可。
 
-在公开副本里，很多功能先走本地状态，这样别人可以不接后端也看到完整交互骨架。
+### 日程
 
-## 3.7 聊天页功能怎么使用
+- `GET /schedule?date_from=...&date_to=...`
+- `POST /schedule`
+- `PATCH /schedule/:id`
 
-聊天页是主入口，适合参考这些交互：
+### 提醒
 
-- 直接输入文字并发送。
-- 空输入时右侧是语音占位按钮，有文字时切换为发送。
-- AI 回复可以拆成多条短消息，模拟真实聊天节奏。
-- 消息可以带引用，引用用户消息或 AI 自己之前的话。
-- 可以搜索本地聊天历史，点击结果进入只读回看。
-- 可以在「我们」「模型测试」「无痕聊天」之间切换窗口。
-- 「模型测试」用于测试模型配置，不读取主聊天 recentMessages。
-- 「无痕聊天」只保存在运行态，不写 IndexedDB 归档。
-- 可以删除、重新编辑、重新生成最近一组消息。
-- 情绪窗口用于展示 AI 的本地情绪 UI，并可产生一条短 UI awareness。
-- 潮汐标本用于把一段对话整理成本地收藏草稿，并支持本地删除。
-- blocked 状态下，普通消息显示未送达；点击感叹号可以写小纸条，小纸条会触发一次模型判断。
+- `GET /reminders?owner_role=...&status=...`
+- `POST /reminders`
+- `PATCH /reminders/:id/status`
 
-聊天页要注意的边界：
+提醒状态修改接口应允许：
 
-- 历史搜索是用户自查，不是记忆注入。
-- 无痕聊天不应写长期记录。
-- blocked 普通未送达消息不应直接触发普通模型回复。
-- API key 不应写死在代码里。
-- 真实生产聊天应通过 Backend Gateway，而不是让浏览器长期保存密钥。
+- `done`
+- `snoozed`
+- `expired`
 
-## 3.8 功能页怎么联通起来
+同时后端要负责追加一条聊天反馈消息，或者返回一个“需要写回聊天”的事件结果。
 
-功能页不是孤立工具箱，它的模块通过动态流和引用回聊天联通。
+## 5.3 SSE / 请求头约定
 
-```txt
-信箱 / 书影 / 日程 / 提醒 / 日记
-  ↓
-动态时间线
-  ↓
-详情页
-  ↓
-引用到聊天 / 返回对应模块
-```
+你前面强调过请求头，这里明确写死：
 
-主要联通方式：
+- 如果后端做流式聊天，建议统一走 SSE
+- 响应头：`Content-Type: text/event-stream`
+- 请求头：`Accept: text/event-stream`
 
-- 信箱 -> 聊天：信件或明信片详情里可以引用到聊天，带标题、摘要和正文片段。
-- 信箱 -> 动态：本地发送或更新信件 / 明信片后，可以生成或更新动态节点。
-- 书影 -> 动态：新增书影记录后，动态生成 review 节点。
-- 书影 -> 小机评价：当前用本地 mock 延迟生成，未来可交给后端模型生成。
-- 日记 -> 动态：diary 节点点击进入小机日记详情。
-- 提醒 / 日程 -> 动态：提醒和日程可以作为生活事件显示在动态里。
-- 动态 -> 模块详情：动态节点按类型进入 moment、信箱、书影、提醒、日程或日记详情。
-- 情绪窗口 -> 聊天：用户看过情绪窗口后，下一次聊天可以带短 UI awareness。
+如果后续把 ombrebrain / 记忆网关也纳入统一网关，这个约定可以继续沿用。
 
-如果后续接后端，建议让每个功能模块都有自己的后端资源 ID。动态节点只保存 `type`、`relatedId`、摘要和时间，详情数据再按模块接口读取。这样动态流不会塞进大量全文，也方便后续同步、删除和编辑。
+但要区分三种通道：
 
-## 3.9 二次开发的推荐顺序
+- 普通 CRUD：`application/json`
+- 流式聊天：`text/event-stream`
+- 终端：`WebSocket`
 
-```txt
-1. 跑通 mock
-2. 改名字、人设、UI 文案
-3. 调整聊天页交互
-4. 调整功能页模块
-5. 接 direct_model 做个人测试
-6. 新建 Backend Gateway
-7. 把 chatTransport 的 backend_gateway 接成真实请求
-8. 后端化消息归档
-9. 后端化信箱 / 动态 / 书影 / 日程 / 提醒 / 日记
-10. 接图片、文件、语音、通知、Android 后台能力
-```
+不要把提醒、日程这类普通写操作也做成 SSE。
 
-不要反过来先做复杂后端。这个项目最有参考价值的部分是“像私聊的前端体验”和“生活功能如何围绕聊天对象组织”。
+## 5.4 角色设置必须独立
 
-## 4. 前端运行层级
+这是当前后端设计里最容易偷懒、但后面最容易返工的点。
 
-- `mock`：纯前端假回复，用于 UI 和交互开发。
-- `direct_model`：前端直连模型，用于个人本地测试。
-- `kiwi_direct`：本地记忆网关验证入口，公开副本默认不包含服务。
-- `backend_gateway`：未来后端入口，公开副本只保留接口方向。
+你现在的产品目标已经明确：
 
-公开副本默认建议使用 `mock`。不要把真实 API key 写进代码。真实模型 key 应放在后端或本地私密环境中，不应提交到 Git。后端应另建。
+- 人类用户只有 `17`
+- AI 角色至少有 `Nortia`、`岑序`、`渡口`
 
-## 5. 聊天页结构
+所以后端从第一天起就应该支持：
 
-聊天页负责消息展示、输入发送、模型回复展示、多条短消息拆分、打字动画、引用消息、AI 回复引用用户消息或自己之前的话、已读状态、情绪弹窗、潮汐标本 / 对话收藏、潮汐标本本地删除、图片 / 文件 / 电话入口占位、空输入语音按钮占位、本地聊天历史搜索与回看、「我们」「模型测试」「无痕聊天」三个窗口隔离、删除 / 重新编辑 / 重新生成，以及 blocked 拉黑与小纸条本地交互。
+- 每个角色独立模型
+- 每个角色独立 system prompt
+- 每个角色独立记忆策略
+- 每个角色独立提醒列表
 
-当前前端只保存本地消息。历史回看用于用户自己查聊天，不是 AI 记忆库；搜索结果不注入模型 prompt，也不写长期记忆。
+否则“切角色聊天”和“群聊里不同角色说话”只是 UI 假象。
 
-## 6. 功能页结构
+## 6. 和 CCC 的关系：哪些能抄，哪些别抄
 
-功能页包含动态、信箱、书影、日程、月经周期、小机日记和提醒。
+可以借鉴 CCC 的地方：
 
-- 动态：展示 AI / 用户 / 系统事件流。
-- 信箱：长信、明信片、慢交流。
-- 书影：读书观影记录，用户评价，小机稍后评价。
-- 日程：任务和安排。
-- 提醒：提醒事项。
-- 小机日记：AI 的日记 / daily digest UI 占位。
-- 月经周期：本地周期记录和预测提醒。
+- 群聊 roster 结构
+- 轮询式群聊消息接口
+- tmux 驱动多 agent 的思路
+- 群聊里按角色回消息，而不是“群聊统一头像”
 
-这些模块当前主要是前端 mock / localStorage，不代表真实后端已接好。
+不建议原样照抄的地方：
 
-## 7. 设置页结构
+- CCC 是它自己的产品结构，不是你现在这个“单聊为主、群聊为辅、提醒按角色挂载”的结构
+- 你这里还有日程/提醒/角色设置三条独立业务线
+- 当前前端已经把聊天窗口和功能归属改得更细，不应该再回退到一个全局大面板
 
-设置页包含模型接入、人格 / system prompt、记忆与上下文、安全与数据、外观、运行与系统。
+结论很直接：
 
-运行与系统是只读状态面板和未来后端占位。生图、语音、Backend Gateway 都只是未来路由说明，不代表当前已接入。
+- 群聊后端思路可以抄 CCC
+- 整个产品信息架构不能按 CCC 原样搬
 
-## 8. 数据层说明
+## 7. 实施顺序建议
 
-```txt
-localStorage：设置、UI 状态、部分功能页本地状态
-IndexedDB：完整聊天历史归档
-mock fixtures：前端演示数据
-contextLogs：本地上下文调试日志
-```
+我建议按这个顺序做：
 
-公开副本不包含 Supabase、Notion、真实记忆库、真实聊天数据、真实用户数据或 kiwi-mem 数据。
+1. 做 `backend_gateway` 单聊入口
+2. 把消息持久化从纯前端 IndexedDB 升级为“前端缓存 + 后端真存储”
+3. 做群聊三接口：`roster / poll / send`
+4. 做角色级 reminders 持久化和回写聊天
+5. 做全局 schedule 持久化
+6. 最后再把 settings 拆成角色级配置
 
-## 9. 未来如何接后端
+原因很简单：
 
-```txt
-前端
-  ↓
-Backend Gateway
-  ↓
-模型服务 / 记忆网关 / 工具服务
-```
+- 先把聊天链路打通，产品才活
+- 再把提醒和日程迁过去，业务归属才稳
+- 设置拆分放后面，但数据库模型要先按角色级设计
 
-后端建议负责保存真实数据和真实 API key、转发模型请求、接记忆库、接图片上传和文件上传、接语音 / 电话 / 通知 / Android 能力、生成信件 / 明信片 / 书影短评、自动唤醒、任务调度，以及 Obsidian / Markdown 导出。
+## 8. 当前已知注意事项
 
-前端负责页面展示、本地 UI 状态、用户交互、调用统一接口，不直接保存生产密钥。
+### 8.1 群聊已存在前端 contract，但不是正式后端联调状态
 
-## 10. 功能之间如何连通
+不要误以为前端有群聊页，就代表后端格式已经最终确定。现在它更像一份已经可运行的接口草图。
 
-### 信箱 -> 聊天
+### 8.2 单聊与群聊消息模型不同
 
-信件 / 明信片可以“引用到聊天”，本质是带着标题、摘要、正文片段跳回聊天输入框。
+单聊现在偏本地归档消息模型，群聊偏 roster + records 模型。后端可以统一底层存储，但接口层不要强行并模。
 
-### 书影 -> 动态
+### 8.3 日程是全局，提醒是角色级
 
-用户完成书影记录后，动态出现一条 review 节点。
+这个边界已经在前端产品层面定死了。后端不要再改成“都全局”。
 
-### 日记 -> 动态
+### 8.4 提醒状态不是纯列表状态
 
-小机日记可以在动态中出现 diary 节点，点击进入日记详情。
+它还会触发聊天反馈。所以提醒服务不能只是一个孤立表。
 
-### 情绪窗口 -> 聊天上下文
+### 8.5 terminal 是独立通道
 
-用户查看情绪窗口后，下一次聊天请求可以带一条短 UI awareness，让 AI 知道用户刚看过。
+不要把 terminal 挂到聊天 SSE 上，也不要让聊天接口顺便承担 PTY 透传。
 
-### 聊天历史 -> 用户自查
+## 9. 一句话结论
 
-聊天历史用于用户自己回看，不参与长期记忆。
+当前前端已经足够支持你下一步做后端，但前提是后端要按“角色独立 + 群聊独立 + 日程全局 + 提醒按角色回写聊天”这四条原则建设。
 
-### blocked 小纸条 -> 聊天上下文
-
-拉黑状态下普通消息只显示未送达并进入后续上下文；小纸条会触发一次模型判断，但仍是前端本地交互，不写长期记忆。
-
-## 11. 二次开发建议
-
-先跑 mock，再改 UI 文案和人设，再接自己的模型 API，再做后端，再接记忆库，最后再做图片、文件、语音、通知、Android 后台能力。
-
-## 12. 素材和字体替换建议
-
-`src/assets/` 里的视觉素材保留用于项目展示。`src/assets/fonts/` 里的字体资源保留用于 UI 预览。`src/assets/fonts/licenses/` 中保留字体授权来源。
-
-本项目中的部分视觉素材仅用于个人学习和私下测试，不随代码授予再分发、商用或二次授权许可。
-
-如果要正式发布自己的版本，请替换素材或自行确认授权。替换时优先检查纸张纹理、明信片模板、背景图、信封图、日记图、字体文件。
-
-## 13. 安全提醒
-
-不要提交 `.env`、`.env.local`、API key、真实聊天记录、真实用户数据、真实记忆库导出、Supabase service role key、Notion token、数据库地址和密码。
+如果后端只是照着 CCC 抄一个 group chat，再把别的东西临时拼进去，后面一定还要重构一轮。

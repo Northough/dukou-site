@@ -93,7 +93,7 @@ const HELP_TEXT = {
   apiMemoryPreview: "未来只读预览少量记忆摘要或状态。当前未接入，也不展示真实长期记忆正文。",
   imageRoute: "未来生图能力的路由名。当前未接入，不调用生图 API，也不在前端保存媒体 Key。",
   voiceRoute: "未来语音能力的路由名。当前未接入，不请求麦克风，也不调用 ASR/TTS。",
-  subAgentModels: "未来给摘要、日记、情绪、工具等任务选择模型。当前只是占位，不保存真实配置。",
+  subAgentModels: "未来给摘要、情绪、工具等任务选择模型。当前只是占位，不保存真实配置。",
   backendTools: "未来由后端管理的工具状态，比如导出、MCP、通知、生图和语音。当前不调用真实工具。",
   providerModel: "当前模型接入页保存的 provider 和 model，只读展示，不是第二套配置。",
   baseUrl: "当前模型接入页保存的 Base URL。这里只显示地址本身，不展示 API key 或请求头。",
@@ -1884,7 +1884,7 @@ function BackendGatewayPage({ onBack }) {
           <div className='runtime-status-grid'>
             <StatusCard label='连接状态' value='未接入' sub='未来检测 /api/health' topic='apiHealth' />
             <StatusCard label='配置状态' value='未接入' sub='未来读取和修改后端配置' topic='apiAdminConfig' />
-            <StatusCard label='子代理模型' value='占位' sub='summary / diary / emotion / tool' topic='subAgentModels' />
+            <StatusCard label='子代理模型' value='占位' sub='summary / emotion / tool' topic='subAgentModels' />
             <StatusCard label='后端工具' value='占位' sub='Obsidian、MCP、唤醒、生图、语音、通知' topic='backendTools' />
           </div>
         </Section>
@@ -1952,7 +1952,7 @@ function LocalDataAndLogsPage({ localStats, logs, onBack, onRefresh, onClearCont
           <Row label={<LabelWithHelp topic='localClearMessages'>清空聊天归档</LabelWithHelp>} sub='当前设备上的聊天缓存会消失，不能从前端恢复'>
             <button className='danger-button' type='button' onClick={onClearMessages}>清空</button>
           </Row>
-          <Row label={<LabelWithHelp topic='localClearFunctionData'>清空功能页本地数据</LabelWithHelp>} sub='动态、明信片、提醒、日程、周期和书影本机记录会清空'>
+          <Row label={<LabelWithHelp topic='localClearFunctionData'>清空功能页本地数据</LabelWithHelp>} sub='提醒和日程本机记录会清空'>
             <button className='danger-button' type='button' onClick={onClearFunctionData}>清空</button>
           </Row>
           <Row label={<LabelWithHelp topic='localClearAll'>清空全部本地数据</LabelWithHelp>} sub='清空当前浏览器里的AI 陪伴前端数据，不清理后端或记忆库'>
@@ -2231,7 +2231,7 @@ export default function Settings() {
     const confirmed = await requestClearConfirm({
       title: '清空功能页本地数据',
       messages: [
-        '清空功能页本地数据后，动态、明信片、提醒、日程、周期和书影本机记录会消失。是否继续？',
+        '清空功能页本地数据后，提醒和日程本机记录会消失。是否继续？',
         '这次清理只影响本机功能页数据，不会清理聊天归档、记忆库或后端。确认继续？',
       ],
       confirmLabel: '清空功能数据',

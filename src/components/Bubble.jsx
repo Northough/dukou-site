@@ -10,22 +10,22 @@ function getAvatarInitial(name, fallback = "机") {
   return String(name || "").trim().slice(0, 1) || fallback;
 }
 
-function getAvatarClassName(role) {
-  return `du-avatar is-${role}`;
+function getAvatarClassName(role, colorTag = "") {
+  return `du-avatar is-${role}${colorTag ? ` is-${colorTag}` : ""}`;
 }
 
-function AvatarContent({ image, name, opacity = 1 }) {
+function AvatarContent({ image, name, opacity = 1, initial = "" }) {
   if (image) {
     return <img src={image} alt="" style={{ opacity }} />;
   }
 
-  return getAvatarInitial(name);
+  return initial || getAvatarInitial(name);
 }
 
-function Avatar({ image = "", name = "机", opacity = 1, role = "assistant", size = 30 }) {
+function Avatar({ image = "", name = "机", opacity = 1, role = "assistant", size = 30, colorTag = "", initial = "" }) {
   return (
-    <div className={getAvatarClassName(role)} style={{ width: size, height: size, fontSize: size * 0.38 }}>
-      <AvatarContent image={image} name={name} opacity={opacity} />
+    <div className={getAvatarClassName(role, colorTag)} style={{ width: size, height: size, fontSize: size * 0.38 }}>
+      <AvatarContent image={image} name={name} opacity={opacity} initial={initial} />
     </div>
   );
 }
@@ -71,10 +71,12 @@ export default function Bubble({
   const isCommandCompleted = message.type === "command_completed" || message.meta?.type === "command_completed";
   const isCommandCanceled = message.type === "command_canceled" || message.meta?.type === "command_canceled";
   const quote = getQuote(message);
-  const avatarName = isUser ? displayNames.user : displayNames.assistant;
-  const avatarImage = isUser ? avatarImages.user : avatarImages.assistant;
+  const avatarName = isUser ? displayNames.user : message.meta?.senderName || displayNames.assistant;
+  const avatarImage = isUser ? avatarImages.user : message.meta?.senderAvatarImage || avatarImages.assistant;
   const avatarOpacity = isUser ? avatarOpacities.user : avatarOpacities.assistant;
   const avatarRole = isUser ? "user" : "assistant";
+  const avatarColor = isUser ? "" : message.meta?.senderColor || "";
+  const avatarInitial = isUser ? "" : message.meta?.senderAvatar || "";
   const quoteAuthorLabel = quote ? getQuoteAuthorLabel(quote, displayNames) : "";
   const messageSource = message.meta?.source || "";
   const isBlockedFailed = isUser && message.status === "blocked_failed";
@@ -171,7 +173,7 @@ export default function Bubble({
       }
     >
       {showAvatar ? (
-        <Avatar image={avatarImage} name={avatarName} opacity={avatarOpacity} role={avatarRole} />
+        <Avatar image={avatarImage} name={avatarName} opacity={avatarOpacity} role={avatarRole} colorTag={avatarColor} initial={avatarInitial} />
       ) : (
         <div className="bubble-avatar-spacer" />
       )}

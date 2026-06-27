@@ -58,6 +58,50 @@ const CHAT_SPACES = [
   },
 ];
 const CHAT_STATUS_VALUES = ["idle", "waiting_model", "typing", "failed", "away", "ended", "blocked"];
+const CHAT_ROLE_SPACES = [
+  {
+    id: "main",
+    label: "Nortia",
+    eyebrow: "单聊",
+    detail: "",
+    assistantName: "Nortia",
+    avatar: "N",
+    color: "blue",
+  },
+  {
+    id: "group",
+    label: "群聊",
+    eyebrow: "多人",
+    detail: "",
+    assistantName: "群聊",
+    avatar: "群",
+    color: "neutral",
+  },
+  {
+    id: "cenxu",
+    label: "岑序",
+    eyebrow: "单聊",
+    detail: "",
+    assistantName: "岑序",
+    avatar: "岑",
+    color: "slate",
+  },
+  {
+    id: "dukou",
+    label: "渡口",
+    eyebrow: "单聊",
+    detail: "",
+    assistantName: "渡口",
+    avatar: "渡",
+    color: "orange",
+  },
+];
+const CHAT_ROLE_SENDER_META = {
+  main: { senderId: "nortia", senderName: "Nortia", senderAvatar: "N", senderColor: "blue" },
+  group: { senderId: "nortia", senderName: "Nortia", senderAvatar: "N", senderColor: "blue" },
+  cenxu: { senderId: "cenxu", senderName: "岑序", senderAvatar: "岑", senderColor: "slate" },
+  dukou: { senderId: "dukou", senderName: "渡口", senderAvatar: "渡", senderColor: "orange" },
+};
 const BLOCKED_NOTE_REPLY_LIMIT = 30;
 const BLOCKED_UNBLOCK_FALLBACK = "我回来了。";
 const EMOTION_ICON_BY_MOOD = {
@@ -183,11 +227,11 @@ function writeJsonStorage(key, value) {
 }
 
 function normalizeChatSpaceId(value) {
-  return CHAT_SPACES.some((space) => space.id === value) ? value : "main";
+  return CHAT_ROLE_SPACES.some((space) => space.id === value) ? value : "main";
 }
 
 function getChatSpaceMeta(id) {
-  return CHAT_SPACES.find((space) => space.id === id) || CHAT_SPACES[0];
+  return CHAT_ROLE_SPACES.find((space) => space.id === id) || CHAT_ROLE_SPACES[0];
 }
 
 function isPersistedChatSpace(id) {
@@ -764,7 +808,9 @@ function patchContextLog(id, patch) {
 function FunctionIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" />
+      <path d="M7 3v3M17 3v3M4.5 9h15" />
+      <rect x="4.5" y="5" width="15" height="15" rx="2.5" />
+      <path d="M8 13h2M12 13h2M16 13h.01M8 16h2M12 16h2" />
     </svg>
   );
 }
@@ -782,6 +828,16 @@ function KeepsakeIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M7 4h10v16l-5-3-5 3V4Z" />
+    </svg>
+  );
+}
+
+function AlertIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 7.5v6" />
+      <path d="M12 16.5h.01" />
     </svg>
   );
 }
@@ -825,7 +881,7 @@ function RegenerateIcon() {
   );
 }
 
-export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTerminal, onOpenSettings, onOpenFunction }) {
+export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTerminal, onOpenSettings, onOpenFunction, onOpenReminders }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [activeQuote, setActiveQuote] = useState(null);
@@ -1138,6 +1194,7 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
     quote = null,
   }) => {
     const responseGroupId = meta.responseGroupId || createResponseGroupId(chatSpaceId);
+    const senderMeta = CHAT_ROLE_SENDER_META[chatSpaceId] || CHAT_ROLE_SENDER_META.main;
     for (const [index, part] of parts.entries()) {
       updateSessionStatus("typing", chatSpaceId);
       setTyping(true);
@@ -1153,7 +1210,7 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
         reasoningSource: index === 0 ? reasoningSource : undefined,
         quote: index === 0 ? quote : null,
         status,
-        meta: { ...meta, responseGroupId, chatSpaceId },
+        meta: { ...senderMeta, ...meta, responseGroupId, chatSpaceId },
       });
       appendMessage(assistantMessage);
       if (persist) {
@@ -1826,9 +1883,14 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
     }
   };
 
-  const displayNames = getDisplayNames(uiSettings);
+  const activeChatSpace = getChatSpaceMeta(activeChatSpaceId);
+  const baseDisplayNames = getDisplayNames(uiSettings);
+  const displayNames = {
+    ...baseDisplayNames,
+    assistant: activeChatSpace.assistantName || activeChatSpace.label || baseDisplayNames.assistant,
+  };
   const avatarImages = {
-    assistant: uiSettings.duAvatarImage || "",
+    assistant: activeChatSpaceId === "main" ? uiSettings.duAvatarImage || "" : "",
     user: uiSettings.userAvatarImage || "",
   };
   const avatarOpacities = {
@@ -1849,8 +1911,7 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
   const emotionLinePoints = emotionChartPoints.map((point) => `${point.lineX},${point.lineY}`).join(" ");
   const hasArchiveWindowOpen = archiveOpen;
   const selectedKeepsake = keepsakes.find((record) => record.id === selectedKeepsakeId) || null;
-  const hasEmotionUpdate = hasUnreadEmotionChange(affordanceState);
-  const activeChatSpace = getChatSpaceMeta(activeChatSpaceId);
+  const hasEmotionUpdate = false;
   const headerStatusText = getHeaderStatusText({ typing, isSending, status: sessionStatus, assistantName: displayNames.assistant });
   const inputDisabled = typing || isSending || ["away", "ended"].includes(sessionStatus) || Boolean(editingUserMessage);
   const inputDisabledLabel = editingUserMessage
@@ -1885,23 +1946,20 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
     <section className="chat-root" style={getChatRootStyle(uiSettings)}>
       <header className="chat-header">
         <button
-          className={`du-avatar-button${hasEmotionUpdate ? " has-emotion-update" : ""}`}
+          className={`du-avatar-button chat-space-avatar-button${hasEmotionUpdate ? " has-emotion-update" : ""}`}
           type="button"
-          onClick={toggleEmotionWindow}
-          aria-expanded={emotionOpen}
+          onClick={() => setChatSpaceDrawerOpen(true)}
+          aria-expanded={chatSpaceDrawerOpen}
           aria-label={`查看${displayNames.assistant}心情`}
         >
           <span className={getAvatarClassName("assistant")}>
             <AvatarImageContent image={avatarImages.assistant} name={displayNames.assistant} opacity={avatarOpacities.assistant} />
           </span>
-          {hasEmotionUpdate && <span className="du-avatar-dot" aria-hidden="true" />}
+          <span className="chat-space-avatar-mark" aria-hidden="true">⌄</span>
         </button>
         <div className="chat-header-title">
           <div className="chat-header-title-row">
             <strong>{displayNames.assistant}</strong>
-            <button className="chat-space-pill" type="button" onClick={() => setChatSpaceDrawerOpen(true)}>
-              {activeChatSpace.label}
-            </button>
           </div>
           <span className={typing || isSending ? "is-typing" : ""}>{headerStatusText}</span>
         </div>
@@ -1909,10 +1967,10 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
           <button
             className="chat-icon-button"
             type="button"
-            onClick={openKeepsakePage}
-            aria-label="潮汐标本"
+            onClick={onOpenReminders || onOpenFunction}
+            aria-label="提醒"
           >
-            <KeepsakeIcon />
+            <AlertIcon />
           </button>
           <button className="ghost-button" type="button" onClick={() => setDrawerOpen(true)}>
             记忆
@@ -1937,7 +1995,7 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
         </div>
       </header>
 
-      {emotionOpen && (
+      {false && emotionOpen && (
         <section className="chat-popover emotion-popover" aria-label={`${displayNames.assistant}心情`}>
           <div className="chat-popover-head">
             <div>
@@ -2031,7 +2089,7 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
         }}
       >
         <div className="day-divider">今天</div>
-        {activeChatSpaceId !== "main" && (
+        {activeChatSpace.detail && (
           <div className="chat-space-inline-note">
             <strong>{activeChatSpace.label}</strong>
             <span>{activeChatSpace.detail}</span>
@@ -2140,7 +2198,7 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
         onToolAction={showPlaceholder}
         disabled={inputDisabled}
         disabledLabel={inputDisabledLabel}
-        placeholder={activeChatSpaceId === "model_test" ? "试一段模型语气..." : "说点什么..."}
+        placeholder={activeChatSpaceId === "group" ? "发到群聊，或 @角色" : `发给 ${displayNames.assistant}`}
         displayNames={displayNames}
       />
       {confirmDialog && (
@@ -2268,7 +2326,7 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
               </button>
             </header>
             <div className="chat-space-list">
-              {CHAT_SPACES.map((space) => (
+              {CHAT_ROLE_SPACES.map((space) => (
                 <button
                   className={space.id === activeChatSpaceId ? "is-active" : ""}
                   type="button"
@@ -2278,7 +2336,7 @@ export default function Chat({ pendingQuote, onPendingQuoteAccepted, onOpenTermi
                 >
                   <span>{space.eyebrow}</span>
                   <strong>{space.label}</strong>
-                  <small>{space.detail}</small>
+                  {space.detail && <small>{space.detail}</small>}
                 </button>
               ))}
             </div>

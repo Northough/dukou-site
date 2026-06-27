@@ -7,10 +7,21 @@ function NavIcon({ type }) {
     );
   }
 
+  if (type === "group") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8.2 11.2a3.1 3.1 0 1 0 0-6.2 3.1 3.1 0 0 0 0 6.2zM15.8 11.2a3.1 3.1 0 1 0 0-6.2 3.1 3.1 0 0 0 0 6.2z" />
+        <path d="M3.8 19.2c.5-3.1 2.1-5 4.4-5s3.9 1.9 4.4 5M11.4 19.2c.5-3.1 2.1-5 4.4-5 2.2 0 3.8 1.9 4.4 5" />
+      </svg>
+    );
+  }
+
   if (type === "function") {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" />
+        <path d="M7 3v3M17 3v3M4.5 9h15" />
+        <rect x="4.5" y="5" width="15" height="15" rx="2.5" />
+        <path d="M8 13h2M12 13h2M16 13h.01M8 16h2M12 16h2" />
       </svg>
     );
   }
@@ -25,7 +36,7 @@ function NavIcon({ type }) {
 
 const tabs = [
   { id: "chat", label: "Chat", caption: "聊天" },
-  { id: "function", label: "Function", caption: "功能页" },
+  { id: "function", label: "Function", caption: "功能" },
   { id: "settings", label: "Settings", caption: "设置" },
 ];
 

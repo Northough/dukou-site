@@ -34,7 +34,7 @@ export default function Entry({ onEnter }) {
         <h1 className="entry-title">{slot.greeting}</h1>
         <p className="entry-subtitle">我在。</p>
         <button className="text-button" type="button" onClick={onEnter}>
-          进来
+          推门
         </button>
       </div>
 
